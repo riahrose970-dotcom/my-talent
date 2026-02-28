@@ -7,8 +7,7 @@
 
 ## Team Members & Roles
 - **Riah** – Frontend Developer & UI/UX Design  
-- **Sreya** – Backend Developer & Logic Integration  
-- **Sreya** – Deployment & Testing  
+- **Sreya** – Backend Developer,Logic Integration, Deployment & Testing  
 
 ---
 
