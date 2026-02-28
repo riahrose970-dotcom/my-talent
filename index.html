@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BusIQ — Smart Crowd Monitoring</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #060d1a;
+  --panel: #0d1b2e;
+  --panel2: #111f33;
+  --border: rgba(255,255,255,0.07);
+  --accent: #00e5ff;
+  --accent2: #ff6b35;
+  --green: #00e676;
+  --orange: #ffab40;
+  --red: #ff5252;
+  --text: #e8f0fe;
+  --muted: #7b93b0;
+  --mono: 'Space Mono', monospace;
+  --sans: 'Plus Jakarta Sans', sans-serif;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Animated grid background */
+body::before {
+  content:'';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ─── HEADER ─────────────────────────────────────────────── */
+header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(6,13,26,0.85);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  font-family: var(--mono);
+  font-size: 22px;
+  color: var(--accent);
+  letter-spacing: -1px;
+}
+.logo span { color: var(--text); }
+
+.live-badge {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--green);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+.live-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse 1.4s infinite;
+}
+@keyframes pulse {
+  0%,100%{ box-shadow: 0 0 0 0 rgba(0,230,118,0.5); }
+  50%    { box-shadow: 0 0 0 6px rgba(0,230,118,0); }
+}
+
+/* ─── TAB NAV ────────────────────────────────────────────── */
+.tabs {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 20px 20px 0;
+  position: relative;
+  z-index: 1;
+}
+
+.tab-btn {
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 9px 22px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all .25s;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.tab-btn:hover { border-color: var(--accent); color: var(--accent); }
+.tab-btn.active {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+  font-weight: 700;
+}
+
+/* ─── MAIN LAYOUT ────────────────────────────────────────── */
+main {
+  max-width: 1200px;
+  margin: 24px auto;
+  padding: 0 20px;
+  position: relative;
+  z-index: 1;
+}
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ─── SECTION TITLE ──────────────────────────────────────── */
+.section-title {
+  font-size: 13px;
+  font-family: var(--mono);
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  margin-bottom: 16px;
+}
+
+/* ─── GRID LAYOUTS ───────────────────────────────────────── */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+@media(max-width:900px){ .grid-2,.grid-3{ grid-template-columns:1fr; } }
+
+/* ─── CARD ───────────────────────────────────────────────── */
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 22px;
+}
+.card-sm { padding: 16px; }
+
+/* ─── LIVE MONITOR ───────────────────────────────────────── */
+.monitor-hero {
+  text-align: center;
+  padding: 30px;
+  background: linear-gradient(135deg, #0d1b2e 60%, #0a2040);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.monitor-hero::after {
+  content:'';
+  position:absolute;
+  top:-80px; right:-80px;
+  width:260px; height:260px;
+  border-radius:50%;
+  background: radial-gradient(circle, rgba(0,229,255,0.07), transparent 70%);
+  pointer-events:none;
+}
+
+.bus-label {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.bus-id {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--accent);
+  letter-spacing: -1px;
+  margin-bottom: 4px;
+}
+
+.route-tag {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 24px;
+}
+
+.count-ring {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  border: 3px solid var(--accent);
+  box-shadow: 0 0 28px rgba(0,229,255,0.2), inset 0 0 20px rgba(0,229,255,0.05);
+  margin: 10px auto 20px;
+  position: relative;
+}
+.count-num {
+  font-family: var(--mono);
+  font-size: 42px;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1;
+}
+.count-label { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+.status-badge {
+  display: inline-block;
+  padding: 8px 24px;
+  border-radius: 30px;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.5px;
+}
+.badge-low    { background: rgba(0,230,118,0.15); color: var(--green); border:1px solid rgba(0,230,118,0.3); }
+.badge-medium { background: rgba(255,171,64,0.15); color: var(--orange); border:1px solid rgba(255,171,64,0.3); }
+.badge-high   { background: rgba(255,82,82,0.15);  color: var(--red);    border:1px solid rgba(255,82,82,0.3); }
+
+.capacity-bar-wrap { margin-top: 18px; }
+.capacity-bar-track {
+  height: 8px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.capacity-bar-fill {
+  height: 100%;
+  border-radius: 10px;
+  transition: width .6s ease, background .4s;
+}
+.capacity-pct {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 6px;
+  text-align: right;
+}
+
+/* ─── STATS ROW ──────────────────────────────────────────── */
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.stat-card {
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  text-align: center;
+}
+.stat-val {
+  font-family: var(--mono);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.stat-label { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+/* ─── SEARCH ─────────────────────────────────────────────── */
+.search-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.search-bar input {
+  flex: 1;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-family: var(--sans);
+  font-size: 14px;
+  color: var(--text);
+  outline: none;
+  transition: border-color .2s;
+}
+.search-bar input::placeholder { color: var(--muted); }
+.search-bar input:focus { border-color: var(--accent); }
+.search-bar button {
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  border-radius: 10px;
+  padding: 12px 22px;
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: opacity .2s;
+  white-space: nowrap;
+}
+.search-bar button:hover { opacity: .85; }
+
+/* ─── BUS RESULT CARD ────────────────────────────────────── */
+.bus-result-card {
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-bottom: 12px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 16px;
+  transition: border-color .2s, transform .2s;
+  cursor: pointer;
+}
+.bus-result-card:hover {
+  border-color: rgba(0,229,255,0.3);
+  transform: translateX(4px);
+}
+.brc-id {
+  font-family: var(--mono);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.brc-route { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+.brc-meta { display: flex; gap: 14px; font-size: 12px; color: var(--muted); align-items: center; }
+.brc-meta strong { color: var(--text); }
+.brc-right { text-align: right; }
+.brc-eta {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--accent2);
+  margin-top: 6px;
+}
+
+.mini-bar {
+  height: 5px;
+  width: 90px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 5px;
+  overflow: hidden;
+  margin-left: auto;
+  margin-top: 8px;
+}
+.mini-bar-fill { height:100%; border-radius:5px; }
+
+/* ─── MAP ────────────────────────────────────────────────── */
+.map-wrap {
+  width: 100%;
+  height: 440px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  position: relative;
+  background: #0a1628;
+}
+iframe.map-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+.map-overlay {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: rgba(6,13,26,0.88);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 12px;
+  color: var(--muted);
+  max-width: 200px;
+  z-index: 10;
+}
+.map-overlay strong { color: var(--accent); display: block; margin-bottom: 4px; font-family: var(--mono); }
+
+.stop-list {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.stop-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+.stop-item:last-child { border-bottom: none; }
+.stop-dot-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding-top: 4px;
+}
+.stop-dot {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  background: var(--bg);
+  flex-shrink: 0;
+}
+.stop-dot.filled { background: var(--accent); }
+.stop-dot.terminus { border-color: var(--accent2); background: var(--accent2); }
+.stop-line {
+  width: 2px;
+  height: 32px;
+  background: linear-gradient(to bottom, var(--accent), rgba(0,229,255,0.2));
+  margin: 3px 0;
+}
+.stop-info { flex: 1; }
+.stop-name { font-size: 14px; font-weight: 600; }
+.stop-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.stop-time {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--accent2);
+  padding-top: 4px;
+  white-space: nowrap;
+}
+
+/* ─── TIMETABLE ──────────────────────────────────────────── */
+.route-selector {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.route-chip {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--panel2);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all .2s;
+}
+.route-chip:hover, .route-chip.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(0,229,255,0.07);
+}
+
+.timetable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.timetable th {
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.timetable td {
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.timetable tr:last-child td { border-bottom: none; }
+.timetable tr:hover td { background: rgba(0,229,255,0.03); }
+.timetable tr.active-row td { background: rgba(0,229,255,0.05); }
+
+.time-cell {
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+.time-cell.next { color: var(--accent); }
+
+.delay-tag {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.delay-on-time { background: rgba(0,230,118,0.12); color: var(--green); }
+.delay-delayed  { background: rgba(255,82,82,0.12);  color: var(--red); }
+.delay-early    { background: rgba(0,229,255,0.12);  color: var(--accent); }
+
+.next-bus-banner {
+  background: linear-gradient(135deg, rgba(0,229,255,0.1), rgba(0,229,255,0.04));
+  border: 1px solid rgba(0,229,255,0.25);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.nbb-label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.nbb-time { font-family: var(--mono); font-size: 26px; font-weight: 700; color: var(--accent); }
+.nbb-countdown {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--accent2);
+  margin-top: 4px;
+}
+.nbb-right { text-align: right; }
+.nbb-bus-id { font-family: var(--mono); font-size: 14px; color: var(--text); font-weight:700; }
+.nbb-route { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+/* ─── TOAST ──────────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--red);
+  color: white;
+  padding: 13px 20px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  box-shadow: 0 8px 24px rgba(255,82,82,0.4);
+  display: none;
+  z-index: 999;
+  animation: fadeUp .4s ease forwards;
+}
+@keyframes fadeUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* ─── CHART ──────────────────────────────────────────────── */
+.chart-wrap { position: relative; height: 200px; }
+
+/* ─── EMPTY STATE ────────────────────────────────────────── */
+.empty-state {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+
+/* scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Bus<span>IQ</span></div>
+  <div class="live-badge"><div class="live-dot"></div> Live Tracking</div>
+</header>
+
+<!-- TAB NAV -->
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('monitor')">📡 Live Monitor</button>
+  <button class="tab-btn" onclick="switchTab('search')">🔍 Route Search</button>
+  <button class="tab-btn" onclick="switchTab('map')">🗺 Map & Stops</button>
+  <button class="tab-btn" onclick="switchTab('timings')">🕐 Bus Timings</button>
+</div>
+
+<main>
+
+  <!-- ══════════ TAB 1: LIVE MONITOR ══════════ -->
+  <div class="tab-panel active" id="tab-monitor">
+    <div class="stat-row">
+      <div class="stat-card"><div class="stat-val" id="statTotal">6</div><div class="stat-label">Active Buses</div></div>
+      <div class="stat-card"><div class="stat-val" id="statAvg">--</div><div class="stat-label">Avg Occupancy</div></div>
+      <div class="stat-card"><div class="stat-val" id="statHigh">0</div><div class="stat-label">High Crowd Buses</div></div>
+    </div>
+
+    <div class="grid-2">
+      <div>
+        <div class="monitor-hero">
+          <div class="bus-label">Monitoring Bus</div>
+          <div class="bus-id">KL-07 AB 1234</div>
+          <div class="route-tag">Calicut ↔ Beach</div>
+          <div class="count-ring">
+            <div class="count-num" id="count">0</div>
+            <div class="count-label">passengers</div>
+          </div>
+          <div class="status-badge badge-low" id="crowdStatus">Low Crowd</div>
+          <div class="capacity-bar-wrap">
+            <div class="capacity-bar-track">
+              <div class="capacity-bar-fill" id="capacityBar" style="width:0%;background:var(--green)"></div>
+            </div>
+            <div class="capacity-pct" id="capacityPct">0 / 50 — 0%</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Passenger Trend</div>
+        <div class="chart-wrap">
+          <canvas id="crowdChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ TAB 2: ROUTE SEARCH ══════════ -->
+  <div class="tab-panel" id="tab-search">
+    <div class="section-title">Search Buses by Route</div>
+    <div class="search-bar">
+      <input type="text" id="routeInput" placeholder="Enter destination (e.g. Beach, Medical College…)" onkeypress="if(event.key==='Enter')searchRoute()">
+      <button onclick="searchRoute()">Search</button>
+    </div>
+    <div id="busResults">
+      <div class="empty-state"><div class="icon">🚍</div>Search a destination to see available buses</div>
+    </div>
+  </div>
+
+  <!-- ══════════ TAB 3: MAP & STOPS ══════════ -->
+  <div class="tab-panel" id="tab-map">
+    <div class="section-title">Route Map & Navigation</div>
+
+    <div class="route-selector" id="mapRouteSelector">
+      <div class="route-chip active" onclick="selectMapRoute(0,this)">Calicut – Beach</div>
+      <div class="route-chip" onclick="selectMapRoute(1,this)">Calicut – Medical College</div>
+      <div class="route-chip" onclick="selectMapRoute(2,this)">Calicut – Railway Station</div>
+      <div class="route-chip" onclick="selectMapRoute(3,this)">Calicut – Kunnamangalam</div>
+    </div>
+
+    <div class="grid-2" style="align-items:start;">
+      <div>
+        <div class="map-wrap">
+          <iframe class="map-frame" id="mapFrame"
+            src="https://www.openstreetmap.org/export/embed.html?bbox=75.7600,11.2300,75.8200,11.2900&layer=mapnik&marker=11.2588,75.7804"
+            allowfullscreen loading="lazy">
+          </iframe>
+          <div class="map-overlay">
+            <strong id="mapRouteLabel">Calicut – Beach</strong>
+            <span id="mapBusCount">2 buses active</span>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:14px;">
+          <div class="section-title">Get Directions</div>
+          <div class="search-bar" style="margin-bottom:0;">
+            <input type="text" id="fromInput" placeholder="From (e.g. Palayam)" style="flex:1;">
+            <input type="text" id="toInput" placeholder="To (e.g. Beach)" style="flex:1;">
+            <button onclick="getDirections()">Go</button>
+          </div>
+          <div id="dirResult" style="margin-top:12px;font-size:13px;color:var(--muted);"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Route Stops</div>
+        <div class="stop-list" id="stopList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ TAB 4: BUS TIMINGS ══════════ -->
+  <div class="tab-panel" id="tab-timings">
+    <div class="section-title">Bus Timings & Schedule</div>
+
+    <div class="next-bus-banner" id="nextBusBanner">
+      <div>
+        <div class="nbb-label">Next Bus Arriving</div>
+        <div class="nbb-time" id="nextBusTime">--:--</div>
+        <div class="nbb-countdown" id="nextBusCountdown">calculating…</div>
+      </div>
+      <div class="nbb-right">
+        <div class="nbb-bus-id" id="nextBusId">--</div>
+        <div class="nbb-route" id="nextBusRoute">--</div>
+      </div>
+    </div>
+
+    <div class="route-selector" id="timingRouteSelector">
+      <div class="route-chip active" onclick="selectTimingRoute(0,this)">Calicut – Beach</div>
+      <div class="route-chip" onclick="selectTimingRoute(1,this)">Calicut – Medical College</div>
+      <div class="route-chip" onclick="selectTimingRoute(2,this)">Calicut – Railway Station</div>
+      <div class="route-chip" onclick="selectTimingRoute(3,this)">Calicut – Kunnamangalam</div>
+    </div>
+
+    <div class="card">
+      <table class="timetable" id="timetable">
+        <thead>
+          <tr>
+            <th>Departure</th>
+            <th>Bus No</th>
+            <th>Via</th>
+            <th>Duration</th>
+            <th>Status</th>
+            <th>Crowd</th>
+          </tr>
+        </thead>
+        <tbody id="timetableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═══════════════════════════════════════════
+   DATA
+═══════════════════════════════════════════ */
+const MAX = 50;
+
+let buses = [
+  { id:"KL-07 AB 1234", route:"Calicut - Beach",            passengers:42, capacity:50 },
+  { id:"KL-07 CD 5678", route:"Calicut - Beach",            passengers:20, capacity:50 },
+  { id:"KL-07 EF 9012", route:"Calicut - Medical College",  passengers:38, capacity:50 },
+  { id:"KL-07 GH 3456", route:"Calicut - Railway Station",  passengers:15, capacity:50 },
+  { id:"KL-07 IJ 7890", route:"Calicut - Medical College",  passengers:49, capacity:50 },
+  { id:"KL-07 KL 1122", route:"Calicut - Kunnamangalam",    passengers:10, capacity:50 }
+];
+
+const routes = [
+  {
+    name:"Calicut – Beach",
+    busCount:"2 buses active",
+    mapSrc:"https://www.openstreetmap.org/export/embed.html?bbox=75.7600,11.2300,75.8400,11.2900&layer=mapnik",
+    stops:[
+      { name:"Palayam Bus Stand",   sub:"Starting point",     time:"6:00 AM", terminus:true },
+      { name:"Medical College",     sub:"Major stop",          time:"+8 min" },
+      { name:"Mananchira Square",   sub:"City center",         time:"+14 min" },
+      { name:"SM Street",           sub:"Market junction",     time:"+19 min" },
+      { name:"Kozhikode Beach",     sub:"Final destination",   time:"+26 min", terminus:true }
+    ]
+  },
+  {
+    name:"Calicut – Medical College",
+    busCount:"2 buses active",
+    mapSrc:"https://www.openstreetmap.org/export/embed.html?bbox=75.7600,11.2200,75.8200,11.2900&layer=mapnik",
+    stops:[
+      { name:"Palayam Bus Stand",   sub:"Starting point",     time:"6:00 AM", terminus:true },
+      { name:"Indira Gandhi Road",  sub:"City junction",       time:"+5 min" },
+      { name:"Govindapuram",        sub:"Residential area",    time:"+12 min" },
+      { name:"Medical College",     sub:"Final destination",   time:"+20 min", terminus:true }
+    ]
+  },
+  {
+    name:"Calicut – Railway Station",
+    busCount:"1 bus active",
+    mapSrc:"https://www.openstreetmap.org/export/embed.html?bbox=75.7700,11.2400,75.8300,11.2900&layer=mapnik",
+    stops:[
+      { name:"Palayam Bus Stand",   sub:"Starting point",     time:"6:00 AM", terminus:true },
+      { name:"Town Hall",           sub:"City center",         time:"+7 min" },
+      { name:"Mofussil Bus Stand",  sub:"Bus interchange",     time:"+13 min" },
+      { name:"Railway Station",     sub:"Final destination",   time:"+22 min", terminus:true }
+    ]
+  },
+  {
+    name:"Calicut – Kunnamangalam",
+    busCount:"1 bus active",
+    mapSrc:"https://www.openstreetmap.org/export/embed.html?bbox=75.7900,11.2400,75.8700,11.3200&layer=mapnik",
+    stops:[
+      { name:"Palayam Bus Stand",   sub:"Starting point",     time:"6:00 AM", terminus:true },
+      { name:"Chevayur",            sub:"Town junction",       time:"+10 min" },
+      { name:"KSRTC Colony",        sub:"Residential",         time:"+18 min" },
+      { name:"Kunnamangalam",       sub:"Final destination",   time:"+30 min", terminus:true }
+    ]
+  }
+];
+
+const schedules = [
+  // Route 0: Beach
+  [
+    { dep:"06:00", bus:"KL-07 AB 1234", via:"Mananchira", dur:"26 min", status:"on-time", crowd:"Low" },
+    { dep:"06:30", bus:"KL-07 CD 5678", via:"SM Street",  dur:"28 min", status:"on-time", crowd:"Low" },
+    { dep:"07:00", bus:"KL-07 AB 1234", via:"Mananchira", dur:"30 min", status:"delayed", crowd:"Medium" },
+    { dep:"07:30", bus:"KL-07 CD 5678", via:"SM Street",  dur:"26 min", status:"on-time", crowd:"High" },
+    { dep:"08:00", bus:"KL-07 AB 1234", via:"Mananchira", dur:"35 min", status:"delayed", crowd:"High" },
+    { dep:"08:30", bus:"KL-07 CD 5678", via:"SM Street",  dur:"26 min", status:"on-time", crowd:"Medium" },
+    { dep:"09:00", bus:"KL-07 AB 1234", via:"Mananchira", dur:"26 min", status:"on-time", crowd:"Low" },
+    { dep:"09:30", bus:"KL-07 CD 5678", via:"SM Street",  dur:"27 min", status:"early",   crowd:"Low" },
+    { dep:"10:00", bus:"KL-07 AB 1234", via:"Mananchira", dur:"26 min", status:"on-time", crowd:"Low" },
+    { dep:"10:30", bus:"KL-07 CD 5678", via:"SM Street",  dur:"26 min", status:"on-time", crowd:"Low" },
+    { dep:"11:00", bus:"KL-07 AB 1234", via:"Mananchira", dur:"26 min", status:"on-time", crowd:"Medium" },
+    { dep:"11:30", bus:"KL-07 CD 5678", via:"SM Street",  dur:"28 min", status:"on-time", crowd:"Medium" },
+  ],
+  // Route 1: Medical College
+  [
+    { dep:"06:00", bus:"KL-07 EF 9012", via:"Govindapuram", dur:"20 min", status:"on-time", crowd:"Low" },
+    { dep:"06:30", bus:"KL-07 IJ 7890", via:"Direct",       dur:"18 min", status:"on-time", crowd:"Low" },
+    { dep:"07:00", bus:"KL-07 EF 9012", via:"Govindapuram", dur:"22 min", status:"delayed", crowd:"Medium" },
+    { dep:"07:30", bus:"KL-07 IJ 7890", via:"Direct",       dur:"20 min", status:"on-time", crowd:"High" },
+    { dep:"08:00", bus:"KL-07 EF 9012", via:"Govindapuram", dur:"25 min", status:"delayed", crowd:"High" },
+    { dep:"08:30", bus:"KL-07 IJ 7890", via:"Direct",       dur:"20 min", status:"on-time", crowd:"High" },
+    { dep:"09:00", bus:"KL-07 EF 9012", via:"Govindapuram", dur:"20 min", status:"on-time", crowd:"Medium" },
+    { dep:"09:30", bus:"KL-07 IJ 7890", via:"Direct",       dur:"18 min", status:"early",   crowd:"Low" },
+  ],
+  // Route 2: Railway Station
+  [
+    { dep:"06:00", bus:"KL-07 GH 3456", via:"Mofussil",    dur:"22 min", status:"on-time", crowd:"Low" },
+    { dep:"07:00", bus:"KL-07 GH 3456", via:"Town Hall",   dur:"22 min", status:"on-time", crowd:"Medium" },
+    { dep:"08:00", bus:"KL-07 GH 3456", via:"Mofussil",    dur:"28 min", status:"delayed", crowd:"High" },
+    { dep:"09:00", bus:"KL-07 GH 3456", via:"Town Hall",   dur:"22 min", status:"on-time", crowd:"Medium" },
+    { dep:"10:00", bus:"KL-07 GH 3456", via:"Mofussil",    dur:"22 min", status:"on-time", crowd:"Low" },
+    { dep:"11:00", bus:"KL-07 GH 3456", via:"Town Hall",   dur:"22 min", status:"on-time", crowd:"Low" },
+  ],
+  // Route 3: Kunnamangalam
+  [
+    { dep:"06:00", bus:"KL-07 KL 1122", via:"Chevayur",    dur:"30 min", status:"on-time", crowd:"Low" },
+    { dep:"07:00", bus:"KL-07 KL 1122", via:"KSRTC Colony",dur:"32 min", status:"on-time", crowd:"Medium" },
+    { dep:"08:00", bus:"KL-07 KL 1122", via:"Chevayur",    dur:"38 min", status:"delayed", crowd:"High" },
+    { dep:"09:00", bus:"KL-07 KL 1122", via:"KSRTC Colony",dur:"30 min", status:"on-time", crowd:"Low" },
+    { dep:"10:00", bus:"KL-07 KL 1122", via:"Chevayur",    dur:"30 min", status:"on-time", crowd:"Low" },
+    { dep:"11:00", bus:"KL-07 KL 1122", via:"KSRTC Colony",dur:"30 min", status:"on-time", crowd:"Low" },
+  ]
+];
+
+/* ═══════════════════════════════════════════
+   TABS
+═══════════════════════════════════════════ */
+function switchTab(id) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+/* ═══════════════════════════════════════════
+   LIVE MONITOR
+═══════════════════════════════════════════ */
+const countEl    = document.getElementById("count");
+const statusEl   = document.getElementById("crowdStatus");
+const capBar     = document.getElementById("capacityBar");
+const capPct     = document.getElementById("capacityPct");
+const statAvgEl  = document.getElementById("statAvg");
+const statHighEl = document.getElementById("statHigh");
+
+const ctx = document.getElementById("crowdChart").getContext("2d");
+const crowdChart = new Chart(ctx, {
+  type: "line",
+  data: {
+    labels: [],
+    datasets: [{
+      label: "Passengers",
+      data: [],
+      borderColor: "#00e5ff",
+      backgroundColor: "rgba(0,229,255,0.07)",
+      borderWidth: 2,
+      fill: true,
+      tension: 0.4,
+      pointBackgroundColor: "#00e5ff",
+      pointRadius: 4
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display:false } },
+    scales: {
+      y: { min:0, max:50, grid:{ color:"rgba(255,255,255,0.05)" }, ticks:{ color:"#7b93b0", font:{size:11} } },
+      x: { grid:{ color:"rgba(255,255,255,0.03)" }, ticks:{ color:"#7b93b0", font:{size:10} } }
+    }
+  }
+});
+
+function updateLive() {
+  const count = Math.floor(Math.random() * MAX);
+  countEl.innerText = count;
+
+  const pct = (count / MAX) * 100;
+  capBar.style.width = pct + '%';
+  capPct.innerText = `${count} / ${MAX} — ${Math.round(pct)}%`;
+
+  if (pct < 40) {
+    statusEl.textContent = "Low Crowd";
+    statusEl.className = "status-badge badge-low";
+    capBar.style.background = "var(--green)";
+  } else if (pct < 75) {
+    statusEl.textContent = "Medium Crowd";
+    statusEl.className = "status-badge badge-medium";
+    capBar.style.background = "var(--orange)";
+  } else {
+    statusEl.textContent = "High Crowd";
+    statusEl.className = "status-badge badge-high";
+    capBar.style.background = "var(--red)";
+    showToast(`⚠️ Bus KL-07 AB 1234 is overcrowded!`);
+  }
+
+  const now = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  crowdChart.data.labels.push(now);
+  crowdChart.data.datasets[0].data.push(count);
+  if (crowdChart.data.labels.length > 10) {
+    crowdChart.data.labels.shift();
+    crowdChart.data.datasets[0].data.shift();
+  }
+  crowdChart.update();
+
+  // Update stats
+  buses[0].passengers = count;
+  const avg = Math.round(buses.reduce((s,b)=>s+(b.passengers/b.capacity*100),0)/buses.length);
+  const high = buses.filter(b=>(b.passengers/b.capacity)>=0.75).length;
+  statAvgEl.textContent = avg + '%';
+  statHighEl.textContent = high;
+}
+
+setInterval(updateLive, 3000);
+updateLive();
+
+/* ═══════════════════════════════════════════
+   ROUTE SEARCH
+═══════════════════════════════════════════ */
+function getCrowdStatus(p, cap) {
+  const pct = (p / cap) * 100;
+  if (pct < 40)  return { text:"Low Crowd",    cls:"low",    color:"var(--green)" };
+  if (pct < 75)  return { text:"Medium Crowd", cls:"medium", color:"var(--orange)" };
+  return               { text:"High Crowd",   cls:"high",   color:"var(--red)" };
+}
+
+function searchRoute() {
+  const input      = document.getElementById("routeInput").value.trim().toLowerCase();
+  const resultsDiv = document.getElementById("busResults");
+  resultsDiv.innerHTML = "";
+
+  if (!input) {
+    resultsDiv.innerHTML = '<div class="empty-state"><div class="icon">🔍</div>Enter a destination above</div>';
+    return;
+  }
+
+  const filtered = buses.filter(b => b.route.toLowerCase().includes(input));
+
+  if (filtered.length === 0) {
+    resultsDiv.innerHTML = '<div class="empty-state"><div class="icon">😕</div>No buses found for this route</div>';
+    return;
+  }
+
+  filtered.forEach(bus => {
+    const crowd = getCrowdStatus(bus.passengers, bus.capacity);
+    const pct   = Math.round((bus.passengers / bus.capacity) * 100);
+    const eta   = Math.floor(Math.random() * 12) + 2;
+
+    const card = document.createElement("div");
+    card.className = "bus-result-card";
+    card.innerHTML = `
+      <div>
+        <div class="brc-id">${bus.id}</div>
+        <div class="brc-route">📍 ${bus.route}</div>
+        <div class="brc-meta">
+          <span>Passengers: <strong>${bus.passengers}/${bus.capacity}</strong></span>
+          <span class="status-badge ${crowd.cls === 'low' ? 'badge-low' : crowd.cls === 'medium' ? 'badge-medium' : 'badge-high'}" style="font-size:11px;padding:3px 10px;">${crowd.text}</span>
+        </div>
+        <div class="mini-bar" style="margin-left:0;margin-top:8px;">
+          <div class="mini-bar-fill" style="width:${pct}%;background:${crowd.color};"></div>
+        </div>
+      </div>
+      <div class="brc-right">
+        <div class="status-badge ${crowd.cls === 'low' ? 'badge-low' : crowd.cls === 'medium' ? 'badge-medium' : 'badge-high'}" style="font-size:12px;">${pct}% full</div>
+        <div class="brc-eta">🕐 ETA ~${eta} min</div>
+      </div>
+    `;
+    resultsDiv.appendChild(card);
+
+    if (crowd.cls === 'high') showToast(`⚠️ Bus ${bus.id} is overcrowded!`);
+  });
+}
+
+/* ═══════════════════════════════════════════
+   MAP & STOPS
+═══════════════════════════════════════════ */
+let currentMapRoute = 0;
+
+function selectMapRoute(idx, el) {
+  currentMapRoute = idx;
+  document.querySelectorAll('#mapRouteSelector .route-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+
+  const r = routes[idx];
+  document.getElementById('mapFrame').src = r.mapSrc;
+  document.getElementById('mapRouteLabel').textContent = r.name;
+  document.getElementById('mapBusCount').textContent = r.busCount;
+  renderStops(idx);
+}
+
+function renderStops(idx) {
+  const stopList = document.getElementById('stopList');
+  const stops = routes[idx].stops;
+  stopList.innerHTML = '';
+
+  stops.forEach((stop, i) => {
+    const isLast = i === stops.length - 1;
+    stopList.innerHTML += `
+      <div class="stop-item">
+        <div class="stop-dot-wrap">
+          <div class="stop-dot ${stop.terminus ? 'terminus' : i === 0 ? 'filled' : ''}"></div>
+          ${!isLast ? '<div class="stop-line"></div>' : ''}
+        </div>
+        <div class="stop-info">
+          <div class="stop-name">${stop.name}</div>
+          <div class="stop-sub">${stop.sub}</div>
+        </div>
+        <div class="stop-time">${stop.time}</div>
+      </div>
+    `;
+  });
+}
+
+function getDirections() {
+  const from = document.getElementById('fromInput').value.trim();
+  const to   = document.getElementById('toInput').value.trim();
+  const res  = document.getElementById('dirResult');
+
+  if (!from || !to) {
+    res.innerHTML = '<span style="color:var(--red)">Please enter both From and To locations.</span>';
+    return;
+  }
+
+  const duration = Math.floor(Math.random() * 20) + 10;
+  const stops    = Math.floor(Math.random() * 5) + 2;
+  const busNum   = buses[Math.floor(Math.random() * buses.length)].id;
+
+  res.innerHTML = `
+    <div style="background:rgba(0,229,255,0.07);border:1px solid rgba(0,229,255,0.2);border-radius:10px;padding:14px;margin-top:8px;">
+      <div style="color:var(--accent);font-weight:700;margin-bottom:8px;">🗺 Route Found</div>
+      <div style="color:var(--text);margin-bottom:4px;">Take <strong style="color:var(--accent)">${busNum}</strong></div>
+      <div style="color:var(--muted);">From: ${from} → To: ${to}</div>
+      <div style="color:var(--muted);margin-top:4px;">Est. Duration: <strong style="color:var(--accent2)">${duration} min</strong> · ${stops} stops</div>
+      <div style="color:var(--muted);margin-top:4px;">Fare: <strong style="color:var(--green)">₹${Math.floor(Math.random()*20)+8}</strong></div>
+    </div>
+  `;
+}
+
+renderStops(0);
+
+/* ═══════════════════════════════════════════
+   TIMINGS
+═══════════════════════════════════════════ */
+let currentTimingRoute = 0;
+
+function selectTimingRoute(idx, el) {
+  currentTimingRoute = idx;
+  document.querySelectorAll('#timingRouteSelector .route-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderTimetable(idx);
+  updateNextBus(idx);
+}
+
+function renderTimetable(idx) {
+  const body = document.getElementById('timetableBody');
+  const now  = new Date();
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  body.innerHTML = '';
+  let nextFound = false;
+
+  schedules[idx].forEach(row => {
+    const [h, m] = row.dep.split(':').map(Number);
+    const depMins = h * 60 + m;
+    const isNext = !nextFound && depMins >= nowMins;
+    if (isNext) nextFound = true;
+
+    const crowdCls = row.crowd === 'Low' ? 'badge-low' : row.crowd === 'Medium' ? 'badge-medium' : 'badge-high';
+    const statusCls = row.status === 'on-time' ? 'delay-on-time' : row.status === 'delayed' ? 'delay-delayed' : 'delay-early';
+    const statusTxt = row.status === 'on-time' ? '✓ On Time' : row.status === 'delayed' ? '⚠ Delayed' : '⚡ Early';
+
+    body.innerHTML += `
+      <tr ${isNext ? 'class="active-row"' : ''}>
+        <td><span class="time-cell ${isNext ? 'next' : ''}">${row.dep}</span> ${isNext ? '← next' : ''}</td>
+        <td style="font-family:var(--mono);font-size:12px;">${row.bus}</td>
+        <td style="color:var(--muted);font-size:12px;">${row.via}</td>
+        <td style="font-family:var(--mono);color:var(--muted);">${row.dur}</td>
+        <td><span class="delay-tag ${statusCls}">${statusTxt}</span></td>
+        <td><span class="status-badge ${crowdCls}" style="font-size:11px;padding:3px 10px;">${row.crowd}</span></td>
+      </tr>
+    `;
+  });
+}
+
+function updateNextBus(idx) {
+  const now     = new Date();
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  const next    = schedules[idx].find(r => {
+    const [h,m] = r.dep.split(':').map(Number);
+    return h*60+m >= nowMins;
+  });
+
+  if (next) {
+    const [h,m] = next.dep.split(':').map(Number);
+    const diffMins = (h*60+m) - nowMins;
+    document.getElementById('nextBusTime').textContent = next.dep;
+    document.getElementById('nextBusId').textContent = next.bus;
+    document.getElementById('nextBusRoute').textContent = routes[idx].name;
+    document.getElementById('nextBusCountdown').textContent =
+      diffMins === 0 ? "Arriving now!" :
+      diffMins < 60  ? `in ${diffMins} min` :
+      `in ${Math.floor(diffMins/60)}h ${diffMins%60}m`;
+  } else {
+    document.getElementById('nextBusTime').textContent = 'No more';
+    document.getElementById('nextBusCountdown').textContent = 'Service ends for today';
+  }
+}
+
+renderTimetable(0);
+updateNextBus(0);
+setInterval(() => { updateNextBus(currentTimingRoute); }, 60000);
+
+/* ═══════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════ */
+let toastTimeout;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => { t.style.display='none'; }, 4000);
+}
+
+/* Live simulation */
+setInterval(() => {
+  buses.forEach(b => { b.passengers = Math.floor(Math.random() * b.capacity); });
+}, 5000);
+</script>
+</body>
+</html>
